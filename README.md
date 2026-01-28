@@ -136,3 +136,140 @@ display(spark.createDataFrame(results))
 ```
 
 
+1.1
+```
+Yep — below is a **Databricks / Spark SQL** template that matches what your RA sheet describes:
+
+* **Population** = “customers within unit” (from your RESL/customer base table)
+* **Rated anchor** = `rafy2025_centralized.haha_rated_cust_cde_1_1_2025`
+* **Unrated/unscored** = customers in population **missing** from rated anchor (LEFT ANTI join)
+
+I’ll give you two versions:
+
+1. **Recommended** (LEFT ANTI join)
+2. **Debug-friendly** (LEFT JOIN + IS NULL)
+
+> Replace table/column names in the “TODO” spots if your base table uses `cas_cust_id` / `cbs_cust_id` instead of `cust_intrl_id`.
+
+---
+
+## Version A (recommended): LEFT ANTI join
+
+```sql
+-- Metric: Total number of unscored/unrated customers in the unit
+-- Method: customers in population NOT present in rated-customer view
+
+WITH population AS (
+  SELECT DISTINCT
+         -- TODO: use the customer ID you can join with rated table
+         cust_intrl_id
+  FROM ra_fy_2025.resl_full_gen
+  WHERE 1=1
+    -- TODO: apply "within unit" filters used by your org (examples below)
+    -- AND segment = 'Canadian Personal Banking'
+    -- AND assessable_unit_name = 'Real Estate Secured Lending (RESL)'
+
+    -- Optional: restrict to active/customers if you have status flags
+    -- AND cas_active_acct_ct > 0
+
+    -- Optional: ensure customer id not null
+    AND cust_intrl_id IS NOT NULL
+),
+
+rated AS (
+  SELECT DISTINCT
+         cust_intrl_id
+  FROM rafy2025_centralized.haha_rated_cust_cde_1_1_2025
+  WHERE cust_intrl_id IS NOT NULL
+)
+
+SELECT
+  COUNT(*) AS unscored_unrated_customer_cnt
+FROM (
+  SELECT p.cust_intrl_id
+  FROM population p
+  LEFT ANTI JOIN rated r
+    ON p.cust_intrl_id = r.cust_intrl_id
+) x;
+```
+
+---
+
+## Version B (debug-friendly): LEFT JOIN + NULL check
+
+```sql
+WITH population AS (
+  SELECT DISTINCT cust_intrl_id
+  FROM ra_fy_2025.resl_full_gen
+  WHERE cust_intrl_id IS NOT NULL
+),
+
+rated AS (
+  SELECT DISTINCT cust_intrl_id
+  FROM rafy2025_centralized.haha_rated_cust_cde_1_1_2025
+  WHERE cust_intrl_id IS NOT NULL
+),
+
+unrated AS (
+  SELECT p.cust_intrl_id
+  FROM population p
+  LEFT JOIN rated r
+    ON p.cust_intrl_id = r.cust_intrl_id
+  WHERE r.cust_intrl_id IS NULL
+)
+
+SELECT COUNT(DISTINCT cust_intrl_id) AS unscored_unrated_customer_cnt
+FROM unrated;
+```
+
+---
+
+## Optional: Breakdown by product type (acct_type_na) for validation
+
+This helps you sanity-check the number and find weird spikes.
+
+```sql
+WITH population AS (
+  SELECT DISTINCT
+         cust_intrl_id,
+         acct_type_na
+  FROM ra_fy_2025.resl_full_gen
+  WHERE cust_intrl_id IS NOT NULL
+    AND acct_type_na IS NOT NULL
+),
+
+rated AS (
+  SELECT DISTINCT cust_intrl_id
+  FROM rafy2025_centralized.haha_rated_cust_cde_1_1_2025
+  WHERE cust_intrl_id IS NOT NULL
+),
+
+unrated AS (
+  SELECT p.cust_intrl_id, p.acct_type_na
+  FROM population p
+  LEFT ANTI JOIN rated r
+    ON p.cust_intrl_id = r.cust_intrl_id
+)
+
+SELECT
+  acct_type_na,
+  COUNT(DISTINCT cust_intrl_id) AS unrated_customers
+FROM unrated
+GROUP BY acct_type_na
+ORDER BY unrated_customers DESC;
+```
+
+---
+
+## One important thing to confirm (so your join is correct)
+
+In your screenshot, the rated view has **three IDs**:
+
+* `cust_intrl_id`
+* `v_global_id`
+* `v_entity_id`
+
+Your base table must use **one of these**. If `ra_fy_2025.resl_full_gen` doesn’t have `cust_intrl_id`, you can switch the join key to `v_global_id` or map via your entity mapping table (your RA logic mentioned an ER mapping view).
+
+If you paste your base table’s `DESCRIBE ra_fy_2025.resl_full_gen` output (just the column names), I’ll rewrite the query with the **exact join key + filters**.
+```
