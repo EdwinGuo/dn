@@ -272,4 +272,60 @@ In your screenshot, the rated view has **three IDs**:
 Your base table must use **one of these**. If `ra_fy_2025.resl_full_gen` doesn’t have `cust_intrl_id`, you can switch the join key to `v_global_id` or map via your entity mapping table (your RA logic mentioned an ER mapping view).
 
 If you paste your base table’s `DESCRIBE ra_fy_2025.resl_full_gen` output (just the column names), I’ll rewrite the query with the **exact join key + filters**.
+
+
+
 ```
+-- Spark SQL version of your PySpark logic
+
+WITH resl AS (
+  SELECT
+    -- original columns kept; rename the two you renamed in PySpark
+    *,
+    cust_cust_id    AS cust_no,
+    cust_cust_type_mn AS cust_type_mn
+  FROM ra_fy_2025.resl_full_gen
+),
+
+hrc AS (
+  SELECT *
+  FROM rafy2025_centralized.haha_HRC_Tier_1_2_CDE_1_2_2025
+),
+
+hrc_cif AS (
+  SELECT
+    *,
+    -- last 9 chars of v_entity_id (Spark SQL supports negative start)
+    substring(v_entity_id, -9, 9) AS cust_no,
+
+    -- 8th char logic: if '1' then 'N' else 'P'
+    CASE
+      WHEN substring(v_entity_id, 8, 1) = '1' THEN 'N'
+      ELSE 'P'
+    END AS cust_type_mn
+  FROM hrc
+  WHERE v_entity_id LIKE 'CIF%'
+),
+
+resl_hrc AS (
+  SELECT
+    h.*,
+    r.*
+  FROM hrc_cif h
+  INNER JOIN resl r
+    ON h.cust_no = r.cust_no
+   AND h.cust_type_mn = r.cust_type_mn
+  WHERE h.risk_rating IN ('Tier 1', 'Tier 2')
+)
+
+-- 1) Equivalent to hrc_cif.count()
+SELECT COUNT(*) AS hrc_cif_cnt
+FROM hrc_cif;
+
+-- 2) If you want the metric-style output you commented out:
+-- SELECT COUNT(DISTINCT cust_intrl_id) AS distinct_cust_intrl_id_cnt
+-- FROM resl_hrc;
+
+
+```
+
