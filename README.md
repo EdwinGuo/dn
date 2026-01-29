@@ -329,3 +329,54 @@ FROM hrc_cif;
 
 ```
 
+
+```
+-- Databricks / Spark SQL equivalent
+
+WITH resl AS (
+  SELECT
+    *,
+    cust_cust_id      AS cust_no,
+    cust_cust_type_mn AS cust_type_mn
+  FROM ra_fy_2025.resl_full_gen
+),
+
+hrc AS (
+  SELECT *
+  FROM rafy2025_centralized.haha_HRC_CDE_1_3_2025
+),
+
+hrc_cif AS (
+  SELECT
+    *,
+    -- last 9 characters of v_entity_id
+    substring(v_entity_id, -9, 9) AS cust_no,
+
+    -- replicate: when(v_cust_type_cd == 'ORG', 'N').otherwise('P')
+    CASE
+      WHEN v_cust_type_cd = 'ORG' THEN 'N'
+      ELSE 'P'
+    END AS cust_type_mn
+  FROM hrc
+  WHERE v_entity_id LIKE 'CIF%'
+),
+
+resl_hrc AS (
+  SELECT
+    h.*,
+    r.*
+  FROM hrc_cif h
+  INNER JOIN resl r
+    ON h.cust_no = r.cust_no
+   AND h.cust_type_mn = r.cust_type_mn
+)
+
+-- Equivalent to hrc_cif.count()
+SELECT COUNT(*) AS hrc_cif_cnt
+FROM hrc_cif;
+
+-- If you also want the join row count (similar to checking resl_hrc)
+-- SELECT COUNT(*) AS resl_hrc_cnt FROM resl_hrc;
+
+```
+
