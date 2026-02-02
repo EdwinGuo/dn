@@ -380,3 +380,44 @@ FROM hrc_cif;
 
 ```
 
+```
+from typing import List
+
+def find_tables_with_columns(db: str, keywords: List[str] = None) -> List[str]:
+    """
+    For a given database/schema, list all tables and return those that contain
+    any column whose name includes one of the keywords (case-insensitive).
+
+    keywords default: ["intrl", "entity"]
+    """
+    if keywords is None:
+        keywords = ["intrl", "entity"]
+
+    keywords = [k.lower() for k in keywords]
+
+    # List tables in the database
+    tables_df = spark.sql(f"SHOW TABLES IN {db}")
+    tables = [r.tableName for r in tables_df.collect()]
+
+    matched = []
+
+    for t in tables:
+        full_name = f"{db}.{t}"
+        try:
+            cols = [c.lower() for c in spark.table(full_name).columns]
+            # match if any column contains any keyword as substring
+            if any(any(k in col for k in keywords) for col in cols):
+                print(full_name)
+                matched.append(full_name)
+        except Exception as e:
+            # Skip views / inaccessible tables / permission issues
+            # You can log e if you want:
+            # print(f"Skipping {full_name}: {e}")
+            continue
+
+    return matched
+
+# Example usage
+matches = find_tables_with_columns("my_db")
+
+```
