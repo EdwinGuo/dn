@@ -421,3 +421,13 @@ def find_tables_with_columns(db: str, keywords: List[str] = None) -> List[str]:
 matches = find_tables_with_columns("my_db")
 
 ```
+
+
+
+```
+SELECT
+  COUNT(DISTINCT cust_no) AS customers_with_new_acct
+FROM ra_fy_2025.resl_full_gen
+WHERE acct_open_dt IS NOT NULL
+  AND months_between(current_date(), acct_open_dt) < 12;
+```
