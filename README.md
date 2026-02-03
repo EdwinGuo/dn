@@ -431,3 +431,98 @@ FROM ra_fy_2025.resl_full_gen
 WHERE acct_open_dt IS NOT NULL
   AND months_between(current_date(), acct_open_dt) < 12;
 ```
+
+
+
+```
+-- =========================================
+-- Customer Growth Rate (RESL scoped)
+-- =========================================
+-- Update these two dates to your review period:
+-- start_dt = start of review period
+-- end_dt   = end of review period
+-- =========================================
+
+WITH params AS (
+  SELECT
+    to_date('2024-01-01') AS start_dt,
+    to_date('2024-12-31') AS end_dt
+),
+
+-- 1) Scope to RESL customers (LOB membership / ability to use service)
+resl_scope AS (
+  SELECT DISTINCT
+    -- Use the pair as the customer business key
+    CAST(cust_cust_id AS STRING)      AS cust_no,
+    CAST(cust_cust_type_mn AS STRING) AS cust_type_mn
+  FROM ra_fy_2025.resl_full_gen
+  WHERE cust_cust_id IS NOT NULL
+    AND cust_cust_type_mn IS NOT NULL
+    -- Optional: if you have a customer/account activity indicator in RESL table
+    -- AND lifecy_mn <> 'CHARGED_OFF'
+),
+
+-- 2) Customer snapshot at start date (SCD slicing)
+cust_start AS (
+  SELECT DISTINCT
+    cm.cust_no,
+    cm.cust_type_mn
+  FROM rafy2025_centralized.customer_master_cde cm
+  CROSS JOIN params p
+  WHERE cm.cust_no IS NOT NULL
+    AND cm.cust_type_mn IS NOT NULL
+    AND cm.etl_record_start_ts <= p.start_dt
+    AND (cm.etl_record_end_ts IS NULL OR cm.etl_record_end_ts > p.start_dt)
+    AND cm.etl_active_flag = true
+    AND cm.death_dt IS NULL
+),
+
+-- 3) Customer snapshot at end date (SCD slicing)
+cust_end AS (
+  SELECT DISTINCT
+    cm.cust_no,
+    cm.cust_type_mn
+  FROM rafy2025_centralized.customer_master_cde cm
+  CROSS JOIN params p
+  WHERE cm.cust_no IS NOT NULL
+    AND cm.cust_type_mn IS NOT NULL
+    AND cm.etl_record_start_ts <= p.end_dt
+    AND (cm.etl_record_end_ts IS NULL OR cm.etl_record_end_ts > p.end_dt)
+    AND cm.etl_active_flag = true
+    AND cm.death_dt IS NULL
+),
+
+-- 4) Restrict both snapshots to RESL scope
+resl_start AS (
+  SELECT s.cust_no, s.cust_type_mn
+  FROM cust_start s
+  INNER JOIN resl_scope r
+    ON s.cust_no = r.cust_no
+   AND s.cust_type_mn = r.cust_type_mn
+),
+
+resl_end AS (
+  SELECT e.cust_no, e.cust_type_mn
+  FROM cust_end e
+  INNER JOIN resl_scope r
+    ON e.cust_no = r.cust_no
+   AND e.cust_type_mn = r.cust_type_mn
+),
+
+-- 5) Counts
+counts AS (
+  SELECT
+    (SELECT COUNT(*) FROM resl_start) AS cust_start_cnt,
+    (SELECT COUNT(*) FROM resl_end)   AS cust_end_cnt
+)
+
+SELECT
+  cust_start_cnt,
+  cust_end_cnt,
+  (cust_end_cnt - cust_start_cnt) AS delta_customers,
+  CASE
+    WHEN cust_start_cnt = 0 THEN NULL
+    ELSE ROUND( (cust_end_cnt - cust_start_cnt) * 100.0 / cust_start_cnt, 4)
+  END AS customer_growth_rate_pct
+FROM counts;
+```
