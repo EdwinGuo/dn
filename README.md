@@ -1,6 +1,15 @@
 ```
 query = """
-SELECT *
+SELECT
+  acc.customr_num,
+  acc.customr_bank_num,
+  acc.customr_type,
+  acc.aplictin_id,
+  acc.ifw_effective_date,
+  acc.record_type      AS acc_record_type,
+  pers.record_type     AS pers_record_type,
+  pers.customr_status
+  -- add whatever else you need, but avoid duplicates or alias them
 FROM cif.xcifacc_view acc
 JOIN cif.xcifbas_personal_view pers
   ON acc.customr_num = pers.customr_num
@@ -8,17 +17,14 @@ JOIN cif.xcifbas_personal_view pers
  AND acc.customr_type = pers.customr_type
 WHERE acc.customr_bank_num = 4
   AND acc.customr_type = 0
-  AND acc.aplictin_id in ('ACS','VSA')
-  AND CAST(SUBSTRING(acc.ifw_effective_date, 1, 8) as date) <= '2024-10-31'
+  AND acc.aplictin_id IN ('ACS','VSA')
+  AND CAST(SUBSTRING(acc.ifw_effective_date, 1, 8) AS date) <= '2024-10-31'
   AND pers.customr_status = '00'
 """
 
-df = spark.read.jdbc(
-    url=srzJdbcURL,
-    table=f"({query}) t",          # <-- parentheses + alias REQUIRED
-    properties=connectionProperties
-)
+df = spark.read.jdbc(url=srzJdbcURL, table=f"({query}) t", properties=connectionProperties)
 display(df)
+
 
 ```
 
