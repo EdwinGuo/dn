@@ -1,3 +1,14 @@
+```
+-- Find address country field somewhere
+SHOW TABLES IN cif_tables;
+
+-- If you have permission to search in information_schema:
+SELECT table_schema, table_name
+FROM system.information_schema.columns
+WHERE lower(column_name) IN ('adres_country_c', 'ctry_lgly_frmd', 'sed1_s001_ctry_lgly_frmd', 'busn_subtype')
+ORDER BY table_schema, table_name;
+
+```
 
 ```sql
 SELECT TOP 1 *
