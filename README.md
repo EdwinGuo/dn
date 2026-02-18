@@ -1,3 +1,45 @@
+
+```sql
+SELECT TOP 1 *
+FROM cif.xcifacc_view;
+```
+
+Even better, ask SQL Server directly:
+
+```sql
+SELECT COLUMN_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'cif'
+  AND TABLE_NAME = 'xcifacc_view'
+ORDER BY ORDINAL_POSITION;
+```
+
+Try:
+
+```sql
+SELECT TOP 10 *
+FROM cif.xcifacc_view acc
+WHERE acc.applctn_id IN ('ACS','VSA');
+```
+
+(or whichever candidate column name you find)
+
+---
+
+
+```sql
+-- AND acc.aplictin_id IN ('ACS','VSA')
+```
+
+
+```sql
+SELECT COLUMN_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA='cif' AND TABLE_NAME IN ('xcifacc_view','xcifbas_personal_view')
+ORDER BY TABLE_NAME, ORDINAL_POSITION;
+```
+
+
 ```
 query = """
 SELECT
