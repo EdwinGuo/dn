@@ -1,4 +1,28 @@
 ```
+query = """
+SELECT *
+FROM cif.xcifacc_view acc
+JOIN cif.xcifbas_personal_view pers
+  ON acc.customr_num = pers.customr_num
+ AND acc.customr_bank_num = pers.customr_bank_num
+ AND acc.customr_type = pers.customr_type
+WHERE acc.customr_bank_num = 4
+  AND acc.customr_type = 0
+  AND acc.aplictin_id in ('ACS','VSA')
+  AND CAST(SUBSTRING(acc.ifw_effective_date, 1, 8) as date) <= '2024-10-31'
+  AND pers.customr_status = '00'
+"""
+
+df = spark.read.jdbc(
+    url=srzJdbcURL,
+    table=f"({query}) t",          # <-- parentheses + alias REQUIRED
+    properties=connectionProperties
+)
+display(df)
+
+```
+
+```
 WITH base_acc AS (
   SELECT
     acc.customr_num,
