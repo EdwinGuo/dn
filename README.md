@@ -1,5 +1,4 @@
-Sure! Let me walk you through a realistic mock scenario — say you want to build a **GitHub Trend Analyzer dashboard** (fitting, given your interest in that space).
-
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDWYmiZxZBoKr5Of7ttNNahaFCz2acMtHwl6kQ0e2rk2hwpPOSbU1IfatNLphwIWFvCvs7CNjpOPrtm16coSEwLOKGnemAXFF2Q9Dgd9e15v6RK0blw8Mxpc5z7EwdotWIWR4PYDK20VIkdMAn/fkiJ9VGPRNQnWRHZu5/qvUYez0+qKF40WeBrDWiPt0lTP/sQNPkW3VTDu13UH3RWwnKR0TEliPCL2huMQGE0rUy6u0lspid9UQPvNR+Av5y1FxboU4L36U7XzGEwPaLxVWcQwXVXatYIq65TKwknnmXtJBrdy99Uuz5xXNW40bE56ZbhPr/wjtGA1b9aYJEkzCTd ec2-user@ip-10-22-197-51.ec2.internal
 ---
 
 ## The Scenario
