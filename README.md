@@ -1,158 +1,129 @@
+Sure! Let me walk you through a realistic mock scenario — say you want to build a **GitHub Trend Analyzer dashboard** (fitting, given your interest in that space).
+
+---
+
+## The Scenario
+You want to build a web app that pulls trending GitHub repos, displays them with stats, and lets you filter by language and category.
+
+---
+
+## Step 1: Install & Start
+```bash
+npx get-shit-done-cc --claude --global
+claude  # open Claude Code
+/gsd:new-project
 ```
-WITH acc AS (
-  SELECT
-    customr_num,
-    customr_bank_num,
-    customr_type,
-    aplictn_id,
-    ifw_effective_date
-  FROM ra_fy_2025.cif_accounts_fy25
-  WHERE customr_bank_num = 4
-    AND aplictn_id IN ('ACS','VSA')
-    AND substring(ifw_effective_date, 1, 8) <= '20251031'
-),
 
--- ------------------------
--- PERSONAL (customr_type = 0)
--- ------------------------
-pers_active AS (
-  SELECT
-    a.customr_num,
-    a.customr_bank_num,
-    a.customr_type,
-    a.aplictn_id,
-    a.ifw_effective_date
-  FROM acc a
-  JOIN ra_fy_2025.cif_personal_fy25 p
-    ON a.customr_num = p.customr_num
-   AND a.customr_bank_num = p.customr_bank_num
-   AND a.customr_type = p.customr_type
-  WHERE a.customr_type = '0'
-    AND p.customr_status = '00'
-),
+GSD immediately starts **interviewing you**:
 
-pers_country AS (
-  SELECT
-    p.*,
-    adr.adres_country_c AS country_final,
-    'PERSONAL_PRIMARY_ADDRESS' AS country_source
-  FROM pers_active p
-  LEFT JOIN ra_fy_2025.cif_address_Aug31_2025 adr
-    ON p.customr_num = adr.customr_num
-   AND p.customr_bank_num = adr.customr_bank_num
-   AND p.customr_type = adr.customr_type
-   AND adr.adres_segmnt_num = 0   -- primary address
-),
+> *"I detected no existing code. Let's define your project. What are you building?"*
 
--- ------------------------
--- NON-PERSONAL (customr_type = 1)
--- ------------------------
-np_active AS (
-  SELECT
-    a.customr_num,
-    a.customr_bank_num,
-    a.customr_type,
-    a.aplictn_id,
-    a.ifw_effective_date
-  FROM acc a
-  JOIN ra_fy_2025.cif_non_personal_fy25 np
-    ON a.customr_num = np.customr_num
-   AND a.customr_bank_num = np.customr_bank_num
-   AND a.customr_type = np.customr_type
-  WHERE a.customr_type = '1'
-    AND np.customr_status = '00'
-),
+You say: *"A GitHub trending dashboard with filters for language, category, and time range. Show repo stats like stars, forks, and contributor count."*
 
-np_enriched AS (
-  SELECT
-    n.*,
-    np.customr_industry_desgntn            AS business_type,   -- U/I/P/S
-    np.customr_inc_country_c              AS inc_country,
-    comp.sed1_s001_busn_subtype           AS company_type,    -- CR/IA/FN/OT/MU/CK...
-    comp.sed1_s001_ctry_lgly_frmd         AS legal_form_country
-  FROM np_active n
-  JOIN ra_fy_2025.cif_non_personal_fy25 np
-    ON n.customr_num = np.customr_num
-   AND n.customr_bank_num = np.customr_bank_num
-   AND n.customr_type = np.customr_type
-  LEFT JOIN cif_tables.xcifed1_compl_npers_view comp
-    ON n.customr_num = comp.customr_num
-   AND n.customr_bank_num = comp.customr_bank_num
-   AND n.customr_type = comp.customr_type
-),
+GSD follows up with targeted questions per category:
 
-np_country AS (
-  SELECT
-    *,
-    CASE
-      WHEN business_type IN ('S','U') THEN false
+> - **APIs/Data:** "Use GitHub's official API or scrape github.com/trending?"
+> - **UI:** "Card layout or table view? Dark mode? Mobile responsive?"
+> - **Stack:** "Any preference — React, Vue, plain HTML?"
+> - **Auth:** "Do users need to save favorites or is it read-only?"
 
-      WHEN business_type = 'P' AND company_type IN ('CR','CK') THEN true
-      WHEN business_type = 'P' AND company_type = 'MU' THEN false
+You answer each one. The output is a `CONTEXT.md` file — a locked spec that every downstream agent reads.
 
-      WHEN business_type = 'I' AND company_type IN ('CR','IA') THEN true
-      WHEN business_type = 'I' AND company_type IN ('FN','OT') THEN false
+---
 
-      ELSE false
-    END AS is_incorporated,
+## Step 2: Research Phase
+GSD spawns **4 parallel researcher agents**, each with a fresh 200k context window:
 
-    CASE
-      WHEN (
-        CASE
-          WHEN business_type IN ('S','U') THEN false
-          WHEN business_type = 'P' AND company_type IN ('CR','CK') THEN true
-          WHEN business_type = 'P' AND company_type = 'MU' THEN false
-          WHEN business_type = 'I' AND company_type IN ('CR','IA') THEN true
-          WHEN business_type = 'I' AND company_type IN ('FN','OT') THEN false
-          ELSE false
-        END
-      ) = true
-      THEN COALESCE(NULLIF(TRIM(inc_country), ''), legal_form_country)
-      ELSE legal_form_country
-    END AS country_final,
+| Agent | What it investigates |
+|---|---|
+| Stack Researcher | Best libraries for GitHub API calls, rate limiting, caching |
+| Features Researcher | How to handle unauthenticated vs authenticated API limits |
+| Architecture Researcher | Component structure, state management options |
+| Pitfalls Researcher | Known issues with GitHub API pagination, CORS, etc. |
 
-    CASE
-      WHEN (
-        CASE
-          WHEN business_type IN ('S','U') THEN false
-          WHEN business_type = 'P' AND company_type IN ('CR','CK') THEN true
-          WHEN business_type = 'P' AND company_type = 'MU' THEN false
-          WHEN business_type = 'I' AND company_type IN ('CR','IA') THEN true
-          WHEN business_type = 'I' AND company_type IN ('FN','OT') THEN false
-          ELSE false
-        END
-      ) = true
-      AND COALESCE(NULLIF(TRIM(inc_country), ''), '') <> ''
-      THEN 'NONPERSONAL_INCORPORATION_COUNTRY'
-      ELSE 'NONPERSONAL_LEGAL_FORMATION_COUNTRY'
-    END AS country_source
-  FROM np_enriched
-)
+Each writes results to `.planning/research/`. Then a **Synthesizer agent** reads all four and produces a `SUMMARY.md`. You never touched a token for any of this — it ran in the background.
 
--- ------------------------
--- FINAL UNION
--- ------------------------
-SELECT
-  customr_num,
-  customr_bank_num,
-  customr_type,
-  aplictn_id,
-  ifw_effective_date,
-  country_final,
-  country_source
-FROM pers_country
+---
 
-UNION ALL
-
-SELECT
-  customr_num,
-  customr_bank_num,
-  customr_type,
-  aplictn_id,
-  ifw_effective_date,
-  country_final,
-  country_source
-FROM np_country
-;
+## Step 3: Planning Phase
+A **Planner agent** reads `CONTEXT.md` + `SUMMARY.md` and breaks the project into atomic phases:
 
 ```
+PHASE 1 — Data Layer
+  Task 1.1: GitHub API client with rate limit handling
+  Task 1.2: Caching layer (localStorage, 5min TTL)
+
+PHASE 2 — UI Components  
+  Task 2.1: RepoCard component
+  Task 2.2: FilterBar (language, time range)
+  Task 2.3: Results grid with pagination
+
+PHASE 3 — Integration & Polish
+  Task 3.1: Wire filters to API calls
+  Task 3.2: Loading states + error handling
+  Task 3.3: Dark mode toggle
+```
+
+Each task is sized to fit in ~50% of a fresh context window. You review the plan and confirm.
+
+---
+
+## Step 4: Execution (The Magic Part)
+GSD runs **Wave 1** — all independent tasks in parallel:
+
+```
+WAVE 1 (parallel):
+  ├── Task 1.1: GitHub API client       ← fresh agent, 200k context
+  ├── Task 1.2: Caching layer           ← fresh agent, 200k context
+  └── Task 2.1: RepoCard component      ← fresh agent, 200k context
+
+WAVE 2 (waits for Wave 1, then parallel):
+  ├── Task 2.2: FilterBar               ← reads Wave 1 outputs
+  └── Task 2.3: Results grid
+
+WAVE 3:
+  └── Task 3.x: Integration & polish    ← reads everything
+```
+
+Every task gets its own **git commit** when done:
+```
+✅ feat: GitHub API client with rate limiting
+✅ feat: localStorage caching layer  
+✅ feat: RepoCard component
+✅ feat: FilterBar with language/time filters
+...
+```
+
+---
+
+## Step 5: Verification
+A **Verifier agent** runs last — it doesn't ask "what did we build?" It asks **"what must be TRUE for this to work?"**
+
+> - Does filtering by language actually change the API query?
+> - Does the cache invalidate after 5 minutes?
+> - Does the UI handle a 0-result response gracefully?
+> - Does it work on mobile viewport?
+
+If anything fails, it flags it with a specific task reference — not a vague "something's broken."
+
+---
+
+## What You End Up With
+- A working app built to your exact spec
+- Clean git history — every task is its own revertable commit
+- `.planning/` folder documenting every decision made
+- Zero context rot — task 12 was built with the same quality as task 1
+
+---
+
+## vs. Raw Claude Code (no GSD)
+
+| | Raw Claude Code | With GSD |
+|---|---|---|
+| Task 1–5 | Great output | Great output |
+| Task 10+ | Starts cutting corners | Same quality |
+| Forgotten requirements | Common | Rare — locked in CONTEXT.md |
+| Git history | Manual | Automatic per task |
+| Parallelism | None | Wave-based |
+
+The whole thing — from `/gsd:new-project` to working app — might take **45–60 minutes of wall time**, most of which is GSD working while you grab a coffee. That's the pitch.
