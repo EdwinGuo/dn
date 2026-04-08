@@ -1,4 +1,6 @@
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILa4sqwPAfEqjocTfcjOL5cAAVsYDPyzY2idSenRg8P0 edwinguo@edwinguos-MacBook-Pro-2.local
+
+
+
 ---
 
 ## The Scenario
@@ -126,3 +128,482 @@ If anything fails, it flags it with a specific task reference — not a vague "s
 | Parallelism | None | Wave-based |
 
 The whole thing — from `/gsd:new-project` to working app — might take **45–60 minutes of wall time**, most of which is GSD working while you grab a coffee. That's the pitch.
+
+
+
+
+
+```
+Structural
+
+derived_from
+rollup_of
+variant_of
+equivalent_to
+supersedes
+
+Lineage
+
+sourced_from
+joined_with
+filtered_by
+excludes
+classified_by
+references
+
+Implementation
+
+implemented_by
+uses_rule
+uses_key
+
+Business context
+
+scoped_to
+defined_as
+owned_by
+stewarded_by
+```
+
+The goal should be:
+
+* easy for humans to understand
+* expressive enough for lineage
+* small enough to govern
+* stable across metrics, sets, datasets, rules, and teams
+
+## Recommended relationship taxonomy v1
+
+## 1. Structural relationships
+
+These describe how a metric or object is structurally composed.
+
+### `derived_from`
+
+Use when one object is logically produced from another.
+
+Examples:
+
+* metric derived from set
+* metric derived from metric
+* set derived from set
+
+Example:
+
+* `metric.1_1_unscored_unrated_customer_count` **derived_from** `set.population`
+
+### `rollup_of`
+
+Use when one metric is an aggregate of lower-level metrics.
+
+Examples:
+
+* total metric rollup of segment metrics
+* business-unit metric rollup of child-unit metrics
+
+### `variant_of`
+
+Use when two metrics are the same general concept but differ by scope, segment, or treatment.
+
+Examples:
+
+* personal customer count is a variant of total customer count
+* FY25 variant of a standard metric pattern
+
+### `equivalent_to`
+
+Use when two objects mean the same thing for business purposes.
+
+Examples:
+
+* two business terms that are synonyms
+* replacement object treated as same semantic meaning
+
+### `supersedes`
+
+Use when one object replaces another over time.
+
+Examples:
+
+* new metric definition supersedes prior definition
+* new rule supersedes previous rule
+
+---
+
+## 2. Lineage relationships
+
+These describe where data comes from and how it moves.
+
+### `sourced_from`
+
+Use when an object directly uses a dataset, table, or source system as input.
+
+Examples:
+
+* set sourced from RESL table
+* metric sourced from reference table
+
+### `joined_with`
+
+Use when a set or derivation depends on joining another set or dataset.
+
+Examples:
+
+* population joined with country reference
+* resl joined with pep list
+
+### `filtered_by`
+
+Use when a set or metric is constrained by a rule.
+
+Examples:
+
+* population filtered by review date
+* customer set filtered by lifecycle code
+
+### `excludes`
+
+Use when a final set or metric is formed by removing another set.
+
+Examples:
+
+* unscored customers excludes rated customers
+* eligible population excludes closed accounts
+
+This is especially important for your `1.1` case.
+
+### `classified_by`
+
+Use when a result depends on a classification reference or category mapping.
+
+Examples:
+
+* customer classified by risk rating
+* country classified by sanctions risk
+
+### `references`
+
+Use when an object uses another object for lookup, supporting logic, or interpretation, but not as a direct lineage source.
+
+Examples:
+
+* rule references country code list
+* metric references legal entity type table
+
+---
+
+## 3. Implementation relationships
+
+These describe how the logic is technically realized.
+
+### `implemented_by`
+
+Use when a metric or set is implemented by SQL, notebook, pipeline, or job.
+
+Examples:
+
+* metric implemented by query
+* set implemented by SQL view
+
+### `uses_rule`
+
+Use when an implementation depends on a reusable business or technical rule.
+
+Examples:
+
+* metric uses customer activity rule
+* population uses personal/non-personal derivation rule
+
+### `uses_key`
+
+Use when an object depends on a specific business key or technical join key.
+
+Examples:
+
+* rated set uses `cust_cust_no`
+* sanctions match uses normalized customer number
+
+This one is optional for v1, but useful if you want medium lineage.
+
+---
+
+## 4. Business context relationships
+
+These place the object in the governance and business model.
+
+### `scoped_to`
+
+Use when an object belongs to an assessable unit, segment, or scope boundary.
+
+Examples:
+
+* metric scoped to AU 301270
+* data element scoped to customer risk section
+
+### `defined_as`
+
+Use when a metric or set is linked to a business term.
+
+Examples:
+
+* metric defined as “customer”
+* set defined as “active customer population”
+
+### `owned_by`
+
+Use when a team is accountable for the object.
+
+Examples:
+
+* metric owned by FCRM
+* rule owned by risk methodology team
+
+### `stewarded_by`
+
+Use when a team or person maintains the object operationally, even if they are not the business owner.
+
+Examples:
+
+* dataset stewarded by CAEDW
+* rule stewarded by enterprise reporting
+
+This can be optional if ownership is enough for now.
+
+---
+
+# Recommended top-level taxonomy structure
+
+I would organize the taxonomy like this:
+
+```yaml
+version: 1.0.0
+metadata:
+  name: Relationship Taxonomy
+  owner: FCRM Spec Library
+
+relationship_categories:
+  - structural
+  - lineage
+  - implementation
+  - business_context
+
+relationship_types:
+  - type: derived_from
+    category: structural
+    description: Source object is logically derived using the target object.
+    directional: true
+
+  - type: rollup_of
+    category: structural
+    description: Source object is an aggregate of the target object.
+    directional: true
+
+  - type: variant_of
+    category: structural
+    description: Source object is a scoped or specialized form of the target object.
+    directional: true
+
+  - type: equivalent_to
+    category: structural
+    description: Source and target have the same business meaning.
+    directional: false
+
+  - type: supersedes
+    category: structural
+    description: Source replaces the target for ongoing use.
+    directional: true
+
+  - type: sourced_from
+    category: lineage
+    description: Source object uses target dataset or source as direct input.
+    directional: true
+
+  - type: joined_with
+    category: lineage
+    description: Source object is built using a join with the target object.
+    directional: true
+
+  - type: filtered_by
+    category: lineage
+    description: Source object is constrained by the target rule.
+    directional: true
+
+  - type: excludes
+    category: lineage
+    description: Source object is formed by excluding the target set or population.
+    directional: true
+
+  - type: classified_by
+    category: lineage
+    description: Source object uses the target classification or rating reference.
+    directional: true
+
+  - type: references
+    category: lineage
+    description: Source object refers to the target for lookup or supporting context.
+    directional: true
+
+  - type: implemented_by
+    category: implementation
+    description: Source object is implemented by the target query, pipeline, or job.
+    directional: true
+
+  - type: uses_rule
+    category: implementation
+    description: Source object depends on the target reusable rule.
+    directional: true
+
+  - type: uses_key
+    category: implementation
+    description: Source object depends on the target join or business key.
+    directional: true
+
+  - type: scoped_to
+    category: business_context
+    description: Source object belongs to the target assessable unit or scope.
+    directional: true
+
+  - type: defined_as
+    category: business_context
+    description: Source object is defined using the target business term.
+    directional: true
+
+  - type: owned_by
+    category: business_context
+    description: Source object is accountable to the target team.
+    directional: true
+
+  - type: stewarded_by
+    category: business_context
+    description: Source object is maintained by the target steward or team.
+    directional: true
+```
+
+# My recommendation for v1 scope
+
+For your first version, I would actually use only these 9 in practice:
+
+* `derived_from`
+* `sourced_from`
+* `filtered_by`
+* `joined_with`
+* `excludes`
+* `implemented_by`
+* `scoped_to`
+* `defined_as`
+* `owned_by`
+
+That is enough to cover most of the SQL you showed without overcomplicating things.
+
+# How this applies to your examples
+
+## 1.1 Unscored customers
+
+You would likely use:
+
+* `derived_from`
+* `excludes`
+* `sourced_from`
+* `filtered_by`
+* `implemented_by`
+* `scoped_to`
+* `owned_by`
+
+## SD1
+
+You would likely use:
+
+* `derived_from`
+* `sourced_from`
+* `filtered_by`
+* `implemented_by`
+* `scoped_to`
+
+## SD3
+
+You would likely use:
+
+* `derived_from`
+* `joined_with`
+* `classified_by`
+* `sourced_from`
+* `implemented_by`
+* maybe `variant_of` if you split personal and non-personal into separate metrics
+
+# Important design guidance
+
+A few rules I would strongly suggest:
+
+### 1. Relationship names should be verbs or verb phrases
+
+Good:
+
+* `derived_from`
+* `sourced_from`
+* `owned_by`
+
+Avoid vague names like:
+
+* `related_to`
+* `linked_to`
+
+Those become meaningless quickly.
+
+### 2. Prefer directed relationships
+
+Most of yours should be directional.
+
+Good:
+
+* metric → sourced_from → dataset
+* set → filtered_by → rule
+
+Only a few should be non-directional, like `equivalent_to`.
+
+### 3. Keep relationship meaning singular
+
+Each relationship type should mean one thing only.
+
+For example:
+
+* `sourced_from` should not also mean “joined with and filtered by”
+* `derived_from` should not mean “same as”
+
+### 4. Keep the taxonomy smaller than you think
+
+A small clean taxonomy is much better than 40 subtly overlapping relationship types.
+
+# My suggested final taxonomy summary
+
+If I reduce it to the simplest useful form:
+
+**Structural**
+
+* `derived_from`
+* `rollup_of`
+* `variant_of`
+* `equivalent_to`
+* `supersedes`
+
+**Lineage**
+
+* `sourced_from`
+* `joined_with`
+* `filtered_by`
+* `excludes`
+* `classified_by`
+* `references`
+
+**Implementation**
+
+* `implemented_by`
+* `uses_rule`
+* `uses_key`
+
+**Business context**
+
+* `scoped_to`
+* `defined_as`
+* `owned_by`
+* `stewarded_by`
+
