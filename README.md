@@ -1,6 +1,294 @@
+## 📦 YAML #1 — metric_1_1_unscored.yaml
+```
+version: 1.0.0
 
+metric:
+  id: metric.unscored_unrated_customer_count
+  label: "1.1"
+  name: "Total number of unscored or unrated customers in the unit"
 
+sets:
+  - id: set.population
+    description: "Customers in RESL snapshot for review date and lifecycle 115"
 
+  - id: set.rated
+    description: "Customers present in scored customer dataset"
+
+rules:
+  - id: rule.population_filter
+    logic: "cbs_effectv_dt = '2025-10-31' AND lifecy_cd = 115"
+
+queries:
+  - id: query.metric_1_1
+    path: "sql/1_1_unscored.sql"
+
+relationships:
+
+  - type: derived_from
+    from: metric.unscored_unrated_customer_count
+    to: set.population
+
+  - type: excludes
+    from: metric.unscored_unrated_customer_count
+    to: set.rated
+
+  - type: sourced_from
+    from: set.population
+    to: dataset.ra_fy_2025.resl_full_gen_5
+
+  - type: filtered_by
+    from: set.population
+    to: rule.population_filter
+
+  - type: sourced_from
+    from: set.rated
+    to: dataset.rafy2025_centralized.scored_cust_cde_1_1_fy25
+
+  - type: implemented_by
+    from: metric.unscored_unrated_customer_count
+    to: query.metric_1_1
+
+  - type: scoped_to
+    from: metric.unscored_unrated_customer_count
+    to: assessable_unit.301270
+
+  - type: owned_by
+    from: metric.unscored_unrated_customer_count
+    to: team.fcrm
+```
+
+## 📦 YAML #2 — metric_SD1.yaml
+```
+version: 1.0.0
+
+metric:
+  id: metric.sd1_customer_count
+  label: "SD1"
+  name: "Total number of customers in scope (lifecycle 115)"
+
+sets:
+  - id: set.sd1_population
+    description: "Customers within date range and lifecycle 115"
+
+rules:
+  - id: rule.sd1_filter
+    logic: "cbs_effectv_dt BETWEEN '2024-11-01' AND '2025-10-31' AND lifecy_cd = 115"
+
+queries:
+  - id: query.sd1
+    path: "sql/sd1.sql"
+
+relationships:
+
+  - type: derived_from
+    from: metric.sd1_customer_count
+    to: set.sd1_population
+
+  - type: sourced_from
+    from: set.sd1_population
+    to: dataset.ra_fy_2025.resl_full_gen_5
+
+  - type: filtered_by
+    from: set.sd1_population
+    to: rule.sd1_filter
+
+  - type: implemented_by
+    from: metric.sd1_customer_count
+    to: query.sd1
+
+  - type: scoped_to
+    from: metric.sd1_customer_count
+    to: assessable_unit.301270
+
+  - type: owned_by
+    from: metric.sd1_customer_count
+    to: team.fcrm
+```
+
+## YAML #3 — metric_SD3_split.yaml
+```
+version: 1.0.0
+
+metric:
+  id: metric.sd3_customer_split
+  label: "SD3"
+  name: "Customer count split by personal and non-personal (non-CA)"
+
+sets:
+  - id: set.resl_base
+    description: "Base RESL population for snapshot date and lifecycle"
+
+  - id: set.personal
+    description: "Personal customers outside Canada"
+
+  - id: set.nonpersonal
+    description: "Non-personal customers resolved via incorporation/legal country"
+
+rules:
+  - id: rule.sd3_base_filter
+    logic: "cbs_effectv_dt = '2025-10-31' AND lifecy_cd = 115"
+
+queries:
+  - id: query.sd3
+    path: "sql/sd3.sql"
+
+relationships:
+
+  - type: sourced_from
+    from: set.resl_base
+    to: dataset.ra_fy_2025.resl_full_gen_5
+
+  - type: filtered_by
+    from: set.resl_base
+    to: rule.sd3_base_filter
+
+  - type: derived_from
+    from: set.personal
+    to: set.resl_base
+
+  - type: derived_from
+    from: set.nonpersonal
+    to: set.resl_base
+
+  - type: joined_with
+    from: set.personal
+    to: dataset.ra_adido_2025.country_ref_list_ca2025
+
+  - type: joined_with
+    from: set.nonpersonal
+    to: dataset.ra_fy_2025.cif_non_personal_FY25_cpb_au
+
+  - type: joined_with
+    from: set.nonpersonal
+    to: dataset.ra_fy_2025.cif_compl_npers_FY25_cpb_au
+
+  - type: derived_from
+    from: metric.sd3_customer_split
+    to: set.personal
+
+  - type: derived_from
+    from: metric.sd3_customer_split
+    to: set.nonpersonal
+
+  - type: implemented_by
+    from: metric.sd3_customer_split
+    to: query.sd3
+
+  - type: scoped_to
+    from: metric.sd3_customer_split
+    to: assessable_unit.301270
+
+  - type: owned_by
+    from: metric.sd3_customer_split
+    to: team.fcrm
+```
+
+# 📦 YAML #4 — metric_CDE1_6.yaml
+```
+version: 1.0.0
+
+metric:
+  id: metric.cde1_6_high_risk_country
+  label: "CDE1_6"
+  name: "Customers associated with very high risk countries"
+
+sets:
+  - id: set.cde_population
+    description: "Customers in RESL filtered for active lifecycle"
+
+rules:
+  - id: rule.cde_filter
+    logic: "cbs_effectv_dt = '2025-10-31' AND lifecy_cd IN (114,116,117) AND cbs_country_mn <> 'CA'"
+
+queries:
+  - id: query.cde1_6
+    path: "sql/cde1_6.sql"
+
+relationships:
+
+  - type: derived_from
+    from: metric.cde1_6_high_risk_country
+    to: set.cde_population
+
+  - type: sourced_from
+    from: set.cde_population
+    to: dataset.ra_fy_2025.resl_full_gen_5
+
+  - type: filtered_by
+    from: set.cde_population
+    to: rule.cde_filter
+
+  - type: joined_with
+    from: set.cde_population
+    to: dataset.ra_fy25_view.sanctions_country_risk_rating_fy2025
+
+  - type: classified_by
+    from: metric.cde1_6_high_risk_country
+    to: dataset.ra_fy25_view.sanctions_country_risk_rating_fy2025
+
+  - type: implemented_by
+    from: metric.cde1_6_high_risk_country
+    to: query.cde1_6
+
+  - type: scoped_to
+    from: metric.cde1_6_high_risk_country
+    to: assessable_unit.301270
+
+  - type: owned_by
+    from: metric.cde1_6_high_risk_country
+    to: team.fcrm
+```
+
+## 📦 YAML #5 — metric_SD2_PEP.yaml
+```
+version: 1.0.0
+
+metric:
+  id: metric.sd2_pep_customers
+  label: "SD2"
+  name: "Customers identified as PEP"
+
+sets:
+  - id: set.resl_customers
+    description: "Customers from RESL dataset"
+
+  - id: set.pep_list
+    description: "Customers identified in PEP list"
+
+queries:
+  - id: query.sd2_pep
+    path: "sql/sd2_pep.sql"
+
+relationships:
+
+  - type: sourced_from
+    from: set.resl_customers
+    to: dataset.ra_fy_2025.resl_full_gen_5
+
+  - type: sourced_from
+    from: set.pep_list
+    to: dataset.ra_adido_2025.pep_list_2025_exploded
+
+  - type: joined_with
+    from: set.pep_list
+    to: set.resl_customers
+
+  - type: derived_from
+    from: metric.sd2_pep_customers
+    to: set.pep_list
+
+  - type: implemented_by
+    from: metric.sd2_pep_customers
+    to: query.sd2_pep
+
+  - type: scoped_to
+    from: metric.sd2_pep_customers
+    to: assessable_unit.301270
+
+  - type: owned_by
+    from: metric.sd2_pep_customers
+    to: team.fcrm
+```
 ---
 
 ## The Scenario
