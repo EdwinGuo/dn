@@ -1,61 +1,69 @@
-## 📦 YAML #1 — metric_1_1_unscored.yaml
+You still have `+` inside `concat()`. Use comma `,`, not `+`.
+
+Replace this:
+
+```sql
+concat('0' + cast(...))
 ```
-version: 1.0.0
 
-metric:
-  id: metric.unscored_unrated_customer_count
-  label: "1.1"
-  name: "Total number of unscored or unrated customers in the unit"
+with this:
 
-sets:
-  - id: set.population
-    description: "Customers in RESL snapshot for review date and lifecycle 115"
-
-  - id: set.rated
-    description: "Customers present in scored customer dataset"
-
-rules:
-  - id: rule.population_filter
-    logic: "cbs_effectv_dt = '2025-10-31' AND lifecy_cd = 115"
-
-queries:
-  - id: query.metric_1_1
-    path: "sql/1_1_unscored.sql"
-
-relationships:
-
-  - type: derived_from
-    from: metric.unscored_unrated_customer_count
-    to: set.population
-
-  - type: excludes
-    from: metric.unscored_unrated_customer_count
-    to: set.rated
-
-  - type: sourced_from
-    from: set.population
-    to: dataset.ra_fy_2025.resl_full_gen_5
-
-  - type: filtered_by
-    from: set.population
-    to: rule.population_filter
-
-  - type: sourced_from
-    from: set.rated
-    to: dataset.rafy2025_centralized.scored_cust_cde_1_1_fy25
-
-  - type: implemented_by
-    from: metric.unscored_unrated_customer_count
-    to: query.metric_1_1
-
-  - type: scoped_to
-    from: metric.unscored_unrated_customer_count
-    to: assessable_unit.301270
-
-  - type: owned_by
-    from: metric.unscored_unrated_customer_count
-    to: team.fcrm
+```sql
+concat('0', cast(...))
 ```
+
+Full fixed version:
+
+```sql
+WITH population_base AS (
+    SELECT DISTINCT cu.*
+    FROM RA_FY_2025.tdaf_acct_extract_2025 ac
+    INNER JOIN ra_fy_2025.TDAF_cust_acct_ns_extract_2025 cans
+        ON ac.acct_id = cans.acct_id
+    INNER JOIN ra_fy_2025.TDAF_Cust_Extract_2025 cu
+        ON cu.cust_id = cans.cust_id
+    WHERE ac.source_appl_mn = 'LON'
+      AND ac.lifecy_mn NOT IN ('CLOSED')
+      AND ac.owning_branch_no = 3333
+),
+
+population AS (
+    SELECT *,
+        CASE
+            WHEN cust_type_mn = 'P'
+                THEN concat('0', cast(cast(cust_no AS BIGINT) AS STRING))
+            ELSE concat('1', cast(cast(cust_no AS BIGINT) AS STRING))
+        END AS customer_number
+    FROM population_base
+)
+
+SELECT customer_number
+FROM population
+LIMIT 10;
+```
+
+Even simpler:
+
+```sql
+concat(
+    CASE WHEN cust_type_mn = 'P' THEN '0' ELSE '1' END,
+    cast(cast(cust_no AS BIGINT) AS STRING)
+) AS customer_number
+```
+
+Your result should become like:
+
+```text
+0870105618
+0869960313
+```
+
+instead of:
+
+```text
+8.70105618E8
+```
+
 
 ## 📦 YAML #2 — metric_SD1.yaml
 ```
